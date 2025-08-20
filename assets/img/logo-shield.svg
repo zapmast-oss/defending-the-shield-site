@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#C42021"/>
+      <stop offset="1" stop-color="#7a0f10"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="28" fill="#0b1220"/>
+  <g transform="translate(28,18)">
+    <path d="M100,0 L200,30 L200,118 C200,158 144,200 100,220 C56,200 0,158 0,118 L0,30 Z" fill="url(#g)" stroke="#400607" stroke-width="3"/>
+    <!-- Baseball diamond -->
+    <g transform="translate(55,52) scale(0.9)">
+      <rect x="0" y="0" width="90" height="90" transform="rotate(45 45 45)" fill="#0b1220" stroke="#f1f5f9" stroke-width="3"/>
+      <circle cx="45" cy="45" r="9" fill="#f1f5f9"/>
+    </g>
+  </g>
+</svg>

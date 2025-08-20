@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Defending the Shield</title>
+  <link rel="icon" href="assets/img/logo-shield.svg">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+  <header class="header">
+    <img src="assets/img/logo-shield.svg" alt="Defending the Shield" class="logo">
+    <div>
+      <div class="title">Defending the Shield</div>
+      <div class="subtitle">Baseball is back. The pursuit is underway.</div>
+    </div>
+    <nav class="cta">
+      <a class="btn" href="site/current/index.html">Enter League Site</a>
+      <a class="btn" href="https://www.youtube.com/@SimBaseballVision" target="_blank" rel="noopener">Watch on YouTube</a>
+    </nav>
+  </header>
+
+  <section class="banner">
+    <h1>2002 • Season Hub</h1>
+    <p>This site hosts the live OOTP export for the Defending the Shield universe. Each update replaces <code>site/current/</code>. Keep your exports organized offline by date; only publish the latest here.</p>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h3>How to Update</h3>
+      <p>Export your league from OOTP, then upload all files into <code>site/current/</code> (overwrite existing). The <em>Enter League Site</em> button will always point to the latest.</p>
+    </article>
+    <article class="card">
+      <h3>Color Key</h3>
+      <p><span class="small">Shield</span> = red • <span class="small">Active / Engaged</span> = green • <span class="small">Info (Week X)</span> = blue. Adjust in <code>assets/css/main.css</code>.</p>
+    </article>
+    <article class="card">
+      <h3>Players League Site</h3>
+      <p>If you keep Players League on NeoCities, link it here. Otherwise, create a second Pages repo and link to it.</p>
+    </article>
+  </section>
+
+  <footer class="footer">
+    © <span id="y"></span> Sim Baseball Vision • Defending the Shield
+    <script>document.getElementById('y').textContent=(new Date()).getFullYear();</script>
+  </footer>
+</body>
+</html>
