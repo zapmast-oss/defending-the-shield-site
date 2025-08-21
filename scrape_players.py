@@ -2,9 +2,9 @@ import os, io, sys, glob, requests, pandas as pd
 from bs4 import BeautifulSoup
 
 # ==== EDIT THESE THREE TO MATCH YOUR REPO ====
-LOCAL_DIR = "assets/site/current/leagues"  # folder where A.html, B.html, ... live (relative to repo root)
-BASE_URL  = "https://zapmast-oss.github.io/defending-the-shield-site/assets/site/current/leagues/league_200_players_{L}.html"  # if scraping from GitHub Pages
-HTML_FILENAME_FORMAT = "league_200_players_{L}.html"  # change if your files are named differently (e.g., "players_{L}.html")
+LOCAL_DIR = "site/current/leagues"  # folder where A.html, B.html, ... live (relative to repo root)
+BASE_URL  = "https://zapmast-oss.github.io/defending-the-shield-site/site/current/leagues/league_200_players_{l}.html"  # if scraping from GitHub Pages
+HTML_FILENAME_FORMAT = "league_200_players_{l}.html"  # change if your files are named differently (e.g., "players_{L}.html")
 # ============================================
 
 # Start with a single letter to "measure twice"
