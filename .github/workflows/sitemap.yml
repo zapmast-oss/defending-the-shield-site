@@ -1,0 +1,27 @@
+name: Generate Sitemap Weekly
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Mondays 09:00 UTC (~2am PT)
+  workflow_dispatch:
+env:
+  SITE_URL: "https://zapmast-oss.github.io/defending-the-shield-site/"  # e.g., https://username.github.io/repo/ or your custom domain
+jobs:
+  sitemap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sitemap
+        run: |
+          cd site/current
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' > sitemap.xml
+          find . -type f -name '*.html' | sed 's|^\./||' | while read -r p; do
+            echo "  <url><loc>${SITE_URL}${p}</loc></url>" >> sitemap.xml
+          done
+          echo '</urlset>' >> sitemap.xml
+      - name: Commit sitemap
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add site/current/sitemap.xml
+          git commit -m "chore: update sitemap" || echo "No changes"
+          git push
