@@ -1,0 +1,15 @@
+name: Optimize Images
+on:
+  push:
+    branches: ["main"]
+    paths: ["site/current/**/*.{png,jpg,jpeg}"]
+  workflow_dispatch:
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: calibreapp/image-actions@v1
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          compressOnly: true
