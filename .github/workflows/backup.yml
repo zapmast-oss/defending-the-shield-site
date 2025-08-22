@@ -1,0 +1,21 @@
+name: Backup site/current
+on:
+  push:
+    branches: ["main"]
+    paths: ["site/current/**"]
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive site
+        run: |
+          cd site/current
+          zip -r ../../site-current-$(date +%F).zip .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-current-${{ github.sha }}
+          path: site-current-*.zip
+          retention-days: 30
