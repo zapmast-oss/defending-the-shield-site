@@ -1,0 +1,254 @@
+SBV AUTOMATION — ONE-CLICK DRAFT & PUBLISH
+(measure twice, cut once)
+
+WHAT THIS GIVES YOU
+1) A plain‑text, ASCII‑only forum preview template that matches your required sections and ATTACH blocks.
+2) A PowerShell script that:
+   - Reads OOTP CSVs from import_export
+   - Builds Week 3 and Week 4 matchup lists (14 days from a given start date)
+   - Fills the template and saves a forum draft txt
+   - Generates an OBS rundown txt (on‑mic script)
+   - Commits and pushes your site repo (optional, toggleable)
+
+PREREQS (WINDOWS)
+- Git installed and in PATH
+- PowerShell 5+ (built in) or PowerShell 7
+- OOTP configured to generate HTML reports to your repo path (site\current) and to export CSVs to import_export
+- Repo already set up for GitHub Pages
+
+RECOMMENDED FOLDER LAYOUT
+C:\SBV\defending-the-shield-site\
+  site\current\  (OOTP reports output target)
+  scripts\
+    generate_shield_draft.ps1
+    config.ps1   (optional, for your paths)
+  templates\
+    shield_preview.txt
+  drafts\
+  rundown\
+
+------------------------------------------------------------
+TEMPLATE: templates\shield_preview.txt  (ASCII ONLY)
+------------------------------------------------------------
+[ATTACH]YOUTUBE_PLAYLIST_IMAGE_ID[/ATTACH]
+https://www.youtube.com/playlist?list=REPLACE_WITH_PLAYLIST_ID
+
+MISSION BRIEFING
+{MISSION_BRIEFING}
+
+KEY MATCHUPS - WEEK 3
+{W3_MATCHUPS}
+
+KEY MATCHUPS - WEEK 4
+{W4_MATCHUPS}
+
+REAL-TIME SIM - SUNDAY FEATURE POOLS (W3 AND W4)
+{SUNDAY_POOLS}
+
+SHIELD SCAN (ABC AND NBC DIVISIONS PLUS WILDCARD)
+{DIVISION_SUMMARIES}
+
+NEXT PROTOCOL - ITS MONDAY (WEEK 5 TEASE)
+{TEASE}
+
+[ATTACH]FULL_DATA_IMAGE_ID[/ATTACH]
+Full Data Access / The Shield
+https://zapmast-oss.github.io/defending-the-shield-site/site/current/index.html
+
+
+----------------------------------------------------------------
+SCRIPT: scripts\generate_shield_draft.ps1  (ASCII ONLY)
+----------------------------------------------------------------
+param(
+  [string]$RepoRoot = "C:\SBV\defending-the-shield-site",
+  [string]$ImportExport = "C:\Users\Public\Documents\OOTP\saved_games\defending_the_shield.lg\import_export",
+  [string]$TemplateFile = "C:\SBV\defending-the-shield-site\templates\shield_preview.txt",
+  [datetime]$StartDate = $(Get-Date),
+  [int]$Days = 14,
+  [string]$PlaylistURL = "https://www.youtube.com/playlist?list=REPLACE_WITH_PLAYLIST_ID",
+  [string]$YoutubeAttachId = "YOUTUBE_PLAYLIST_IMAGE_ID",
+  [string]$FullDataAttachId = "FULL_DATA_IMAGE_ID",
+  [switch]$GitPush
+)
+
+$ErrorActionPreference = "Stop"
+
+function Write-Line { param([string]$s) [Console]::WriteLine($s) }
+function Safe-ReadCsv {
+  param([string]$path)
+  if (Test-Path $path) { return Import-Csv -Path $path } else { return $null }
+}
+function Get-FirstExisting {
+  param([string[]]$candidates)
+  foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
+  return $null
+}
+
+# Resolve inputs
+$RepoRoot = (Resolve-Path $RepoRoot).Path
+$TemplateFile = (Resolve-Path $TemplateFile).Path
+$DraftDir = Join-Path $RepoRoot "drafts"
+$RundownDir = Join-Path $RepoRoot "rundown"
+$CurrentSite = Join-Path $RepoRoot "site\current"
+New-Item -ItemType Directory -Force -Path $DraftDir | Out-Null
+New-Item -ItemType Directory -Force -Path $RundownDir | Out-Null
+
+# Load CSVs (best‑effort; OOTP filenames vary)
+$schedulePath = Get-FirstExisting @(
+  (Join-Path $ImportExport "schedule.csv"),
+  (Join-Path $ImportExport "games.csv"),
+  (Join-Path $ImportExport "game_logs.csv"),
+  (Join-Path $ImportExport "game_log.csv")
+)
+$teamsPath = Get-FirstExisting @(
+  (Join-Path $ImportExport "teams.csv"),
+  (Join-Path $ImportExport "team.csv")
+)
+
+if (-not $schedulePath) { throw "Could not find a schedule/games CSV in import_export." }
+
+$teams = @{}
+if ($teamsPath) {
+  $trows = Import-Csv $teamsPath
+  foreach ($t in $trows) {
+    $id = $t.team_id; if (-not $id) { $id = $t.id }
+    $name = $t.name
+    if ($id -and $name) { $teams[$id] = $name }
+  }
+}
+
+function Get-Col {
+  param($row, [string[]]$names)
+  foreach ($n in $names) {
+    if ($row.PSObject.Properties.Name -contains $n) {
+      $v = $row.$n
+      if ($null -ne $v -and "$v" -ne "") { return $v }
+    }
+  }
+  return $null
+}
+
+$rows = Import-Csv $schedulePath
+$start = $StartDate.Date
+$end = $StartDate.Date.AddDays($Days - 1)
+
+$games = @()
+foreach ($r in $rows) {
+  $dstr = Get-Col $r @("date","game_date","start_date")
+  if (-not $dstr) { continue }
+  $d = $null
+  if (-not [DateTime]::TryParse($dstr, [ref]$d)) { continue }
+  if ($d -lt $start -or $d -gt $end) { continue }
+
+  $home = Get-Col $r @("home_team_name","home_team","home","home_name","home_team_id")
+  $away = Get-Col $r @("away_team_name","away_team","away","away_name","away_team_id")
+
+  # Map IDs to names if needed
+  if ($teams.ContainsKey($home)) { $home = $teams[$home] }
+  if ($teams.ContainsKey($away)) { $away = $teams[$away] }
+  if (-not $home) { $home = "HOME" }
+  if (-not $away) { $away = "AWAY" }
+
+  $games += [PSCustomObject]@{ Date = $d; Home = $home; Away = $away }
+}
+
+# Sort and split into two 7‑day windows
+$games = $games | Sort-Object Date, Home, Away
+$day1 = $start; $day8 = $start.AddDays(7)
+
+$w3 = $games | Where-Object { $_.Date -ge $day1 -and $_.Date -lt $day8 }
+$w4 = $games | Where-Object { $_.Date -ge $day8 -and $_.Date -le $end }
+
+function Format-Matchups {
+  param($subset)
+  if (-not $subset -or $subset.Count -eq 0) { return "(no scheduled games in this window)" }
+  $lines = @()
+  $byDate = $subset | Group-Object Date | Sort-Object Name
+  foreach ($g in $byDate) {
+    $ds = $g.Name.ToString("yyyy-MM-dd")
+    $lines += $ds
+    foreach ($row in $g.Group) {
+      $lines += ("  " + $row.Away + " at " + $row.Home)
+    }
+    $lines += ""
+  }
+  return ($lines -join "`r`n").TrimEnd()
+}
+
+$w3Text = Format-Matchups $w3
+$w4Text = Format-Matchups $w4
+
+# Compose forum draft from template
+$tpl = Get-Content -Path $TemplateFile -Raw
+$tpl = $tpl -replace "YOUTUBE_PLAYLIST_IMAGE_ID", [Regex]::Escape($YoutubeAttachId)
+$tpl = $tpl -replace "REPLACE_WITH_PLAYLIST_ID", [Regex]::Escape(($PlaylistURL -replace ".*list=",""))
+$tpl = $tpl -replace "FULL_DATA_IMAGE_ID", [Regex]::Escape($FullDataAttachId)
+$tpl = $tpl -replace "\{MISSION_BRIEFING\}", "TBD"
+$tpl = $tpl -replace "\{W3_MATCHUPS\}", [Regex]::Escape($w3Text)
+$tpl = $tpl -replace "\{W4_MATCHUPS\}", [Regex]::Escape($w4Text)
+$tpl = $tpl -replace "\{SUNDAY_POOLS\}", "TBD"
+$tpl = $tpl -replace "\{DIVISION_SUMMARIES\}", "TBD"
+$tpl = $tpl -replace "\{TEASE\}", "TBD"
+
+$stamp = (Get-Date -Format "yyyyMMdd_HHmmss")
+$draftOut = Join-Path $DraftDir ("shield_preview_" + $stamp + ".txt")
+Set-Content -Path $draftOut -Value $tpl -NoNewline
+
+# OBS rundown (simple)
+$rundown = @()
+$rundown += "INTRO"
+$rundown += "Mission Briefing: TBD"
+$rundown += "Week 3 Matchups:"; $rundown += $w3Text.Split("`n")
+$rundown += "Week 4 Matchups:"; $rundown += $w4Text.Split("`n")
+$rundown += "Sunday Feature Pools: TBD"
+$rundown += "Shield Scan: TBD"
+$rundown += "Next Protocol (It s Monday): TBD"
+$rundownOut = Join-Path $RundownDir ("shield_rundown_" + $stamp + ".txt")
+Set-Content -Path $rundownOut -Value ($rundown -join "`r`n")
+
+Write-Line "Created forum draft: $draftOut"
+Write-Line "Created OBS rundown: $rundownOut"
+
+if ($GitPush) {
+  Write-Line "Running git add/commit/push..."
+  & git -C $RepoRoot add . | Out-Null
+  & git -C $RepoRoot commit -m ("Site and drafts update " + $stamp) | Out-Null
+  & git -C $RepoRoot push
+  Write-Line "Git push complete."
+}
+
+Write-Line "DONE."
+
+
+----------------------------------------
+HOW TO RUN (ONCE)
+----------------------------------------
+1) Open PowerShell as you normally do.
+2) Optional first‑time step: Set‑ExecutionPolicy -Scope CurrentUser RemoteSigned
+3) Run the script with your paths and a start date for your next two sim weeks. Example:
+
+   powershell -ExecutionPolicy Bypass -File C:\SBV\defending-the-shield-site\scripts\generate_shield_draft.ps1 ^
+     -RepoRoot "C:\SBV\defending-the-shield-site" ^
+     -ImportExport "C:\Users\You\Documents\OOTP Baseball 25\saved_games\defending_the_shield.lg\import_export" ^
+     -TemplateFile "C:\SBV\defending-the-shield-site\templates\shield_preview.txt" ^
+     -StartDate "2002-04-15" ^
+     -Days 14 ^
+     -PlaylistURL "https://www.youtube.com/playlist?list=PLxxxxxxxxxxxxxxxx" ^
+     -YoutubeAttachId "1234567" ^
+     -FullDataAttachId "7654321" ^
+     -GitPush
+
+This creates:
+- drafts\shield_preview_YYYYMMDD_HHMMSS.txt  (paste into forum)
+- rundown\shield_rundown_YYYYMMDD_HHMMSS.txt (use in OBS as your on‑mic script)
+- Optional: commits and pushes the repo if -GitPush is supplied
+
+----------------------------------------
+NOTES AND TROUBLESHOOTING
+----------------------------------------
+- If schedule.csv is named differently, the script tries common alternatives. If none are found, export data again in OOTP (Game -> Database -> Export data).
+- If team names show as numbers, teams.csv was missing. Export again to include teams.csv or update ImportExport path.
+- The script does not trigger OOTP to regenerate HTML reports. In OOTP, set your reports output to site\current and click Generate Reports before pushing.
+- All output is ASCII only; no emojis or smart quotes.
+- You can edit any TBD lines in the draft before posting.
+
